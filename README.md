@@ -50,9 +50,6 @@ A single-port Flask application that combines **real-time hand gesture recogniti
 | `GET`  | `/`                    | Main page                                    |
 | `GET`  | `/video_feed`          | MJPEG camera stream                          |
 | `GET`  | `/api/chats`           | List all saved chats                         |
-| `POST` | `/api/chats/new`       | Create a new chat                            |
-| `GET`  | `/api/chats/<id>`      | Load a chat with messages                    |
-|`DELETE`| `/api/chats/<id>`      | Delete a chat                                |
 | `POST` | `/api/chats/<id>/send` | Send a message (SSE stream)                  |
 ----------------------------------------------------------------------------------
 
