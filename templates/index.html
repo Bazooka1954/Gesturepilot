@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>THE GOAT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css"/>
+    <link rel="icon" type="image/png" href="Goat.png">
+</head>
+<body>
+    <div class="grid-bg"></div>
+    <div class="vignette"></div>
+    <header>
+        <div class="header-content">
+            <div class="header-status">
+                <span class="dot" id="conn-dot"></span>
+                <span id="conn-label">CONNECTING</span>
+            </div>
+        </div>
+    </header>
+    <main>
+        <section class="camera-section">
+            <div class="camera-frame">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <img id="feed" src="/video_feed" alt="Camera feed"/>
+                <div class="scan-line"></div>
+                <div class="hold-ring-wrap" id="hold-ring-wrap">
+                    <svg class="hold-ring" viewBox="0 0 120 120">
+                        <circle class="ring-bg"   cx="60" cy="60" r="50"/>
+                        <circle class="ring-fill"  id="ring-fill" cx="60" cy="60" r="50"
+                                stroke-dasharray="314" stroke-dashoffset="314"/>
+                    </svg>
+                    <span class="hold-label">HOLD</span>
+                </div>
+            </div>
+            <div class="cam-status">
+                <span class="cam-label">LIVE</span>
+                <span id="gesture-name-display"></span>
+            </div>
+        </section>
+        <section class="panel-section">
+            <div class="panel-header">
+                <div class="panel-subtitle" id="menu-state-label">● INACTIVE</div>
+            </div>
+            <div class="cards" id="cards">
+                <div class="card" id="card-one"   data-gesture="one">
+                    <div class="card-label">Facebook</div>
+                    <div class="card-finger">1 finger</div>
+                    <div class="card-progress"><div class="card-prog-fill" id="prog-one"></div></div>
+                </div>
+                <div class="card" id="card-two"   data-gesture="two">
+                    <div class="card-label">Instagram</div>
+                    <div class="card-finger">2 fingers</div>
+                    <div class="card-progress"><div class="card-prog-fill" id="prog-two"></div></div>
+                </div>
+                <div class="card" id="card-three" data-gesture="three">
+                    <div class="card-label">WhatsApp</div>
+                    <div class="card-finger">3 fingers</div>
+                    <div class="card-progress"><div class="card-prog-fill" id="prog-three"></div></div>
+                </div>
+                <div class="card" id="card-four"  data-gesture="four">
+                    <div class="card-label">Telegram</div>
+                    <div class="card-finger">4 fingers</div>
+                    <div class="card-progress"><div class="card-prog-fill" id="prog-four"></div></div>
+                </div>
+                <div class="card" id="card-five"  data-gesture="five">
+                    <div class="card-label">Chat Bot</div>
+                    <div class="card-finger">5 fingers</div>
+                    <div class="card-progress"><div class="card-prog-fill" id="prog-five"></div></div>
+                </div>
+            </div>
+
+            <div class="toast" id="toast">
+                <span class="toast-key"   id="toast-key"></span>
+                <span class="toast-label" id="toast-label"></span>
+                <span class="toast-arrow"></span>
+            </div>
+            <div class="pinch-hint" id="pinch-hint">
+                <div class="pinch-icon">✊🏾</div>
+                <div class="pinch-content">
+                    <div class="pinch-title">PINCH TO ACTIVATE</div>
+                    <div class="pinch-sub">Hold fist gesture for 1.2 s to open / close the menu</div>
+                </div>
+            </div>
+        </section>
+    </main>
+    <button id="chat-trigger" title="Open Chat Bot">
+        <span class="chat-icon">◈</span>
+        <span class="close-icon">✕</span>
+        <span id="chat-badge"></span>
+    </button>
+    <div id="chat-popup">
+        <div class="cp-header">
+            <div class="cp-header-left">
+                <div class="cp-dot"></div>
+                <span class="cp-title">CHAT BOT</span>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;">
+                <button class="cp-new-btn" id="cp-new-btn">＋ NEW</button>
+            </div>
+        </div>
+        <div class="cp-messages" id="cp-messages">
+            <div class="cp-empty" id="cp-empty">
+                <div class="cp-empty-icon">◈</div>
+                <span>START A CONVERSATION</span>
+            </div>
+        </div>
+        <div class="cp-input-bar">
+            <textarea id="cp-input" placeholder="Send a message…" rows="1"></textarea>
+            <button class="cp-send-btn" id="cp-send-btn">⩥</button>
+        </div>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
