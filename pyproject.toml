@@ -20,10 +20,12 @@ classifiers = [
     "Topic :: Desktop Environment",
 ]
 
-# Runtime dependencies are intentionally empty in this phase.
-# Computer vision dependencies (mediapipe, opencv-python) are deferred
-# until MediaPipe compatibility with the chosen Python runtime is validated.
-dependencies = []
+# OpenCV and NumPy back the camera capture layer (Phase 2).
+# MediaPipe is deliberately absent: hand tracking is a later phase.
+dependencies = [
+    "numpy>=2.2.6",
+    "opencv-python>=5.0.0.93",
+]
 
 [project.scripts]
 gesturepilot = "gesturepilot.main:main"
@@ -42,8 +44,12 @@ packages = ["src/gesturepilot"]
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config -m 'not integration'"
 xfail_strict = true
+markers = [
+    "integration: requires real hardware; deselected by default, opt in with -m integration",
+    "webcam: requires a physical camera",
+]
 
 [tool.coverage.run]
 source = ["gesturepilot"]

@@ -10,11 +10,14 @@ from gesturepilot import __version__
 def main() -> int:
     """Print a startup banner confirming the package runs.
 
+    Intentionally does not open the camera or process frames. A webcam smoke test
+    lives at ``scripts/camera_smoke_test.py`` instead.
+
     Returns:
         Process exit code. Always ``0`` at this stage.
     """
     print(f"GesturePilot {__version__}")
-    print("Environment OK. No pipeline stages implemented yet.")
+    print("Environment OK. Camera layer available; gesture pipeline not implemented yet.")
     return 0
 
 

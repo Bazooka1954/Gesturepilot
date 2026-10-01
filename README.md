@@ -41,17 +41,17 @@ Camera
 
 Stage responsibilities:
 
-| Stage | Responsibility |
-|---|---|
-| Camera | Capture frames from a device |
-| Hand Tracker | Produce hand landmarks (MediaPipe, pending validation) |
-| Landmark Processing | Normalise, smooth, derive geometric features |
-| Gesture Classifier | Map features to candidate gestures |
-| Confidence Filter | Reject low-confidence classifications |
-| Safety State Machine | Hold-to-confirm, cooldown, release-to-reset, arming |
-| Gesture Event | Emit a confirmed, validated gesture |
-| Action Dispatcher | Route an event to the correct backend |
-| OS-specific Actions | Perform the action on Windows |
+| Stage | Responsibility | Status |
+|---|---|---|
+| Camera | Capture frames from a device | **Implemented (Phase 2)** |
+| Hand Tracker | Produce hand landmarks (MediaPipe, pending validation) | Not started |
+| Landmark Processing | Normalise, smooth, derive geometric features | Not started |
+| Gesture Classifier | Map features to candidate gestures | Not started |
+| Confidence Filter | Reject low-confidence classifications | Not started |
+| Safety State Machine | Hold-to-confirm, cooldown, release-to-reset, arming | Not started |
+| Gesture Event | Emit a confirmed, validated gesture | Not started |
+| Action Dispatcher | Route an event to the correct backend | Not started |
+| OS-specific Actions | Perform the action on Windows | Not started |
 
 Each stage will be a separate, independently testable module with no knowledge of the
 stages before it. Windows APIs are isolated behind the Action Dispatcher so that
@@ -61,19 +61,44 @@ platform-specific code never leaks into recognition logic.
 
 ## Current Status
 
-**Phase 1 — project foundation only.**
+**Phase 2 — camera layer complete.**
+
+Implemented so far:
+
+- **Camera capture** via OpenCV (`opencv-python` + `numpy`), behind an abstract
+  `Camera` interface with a safe `open → read → close` lifecycle
+- Typed frame metadata and measured (not requested) FPS
+- Camera-specific exception hierarchy
+- 90 unit tests that run without a webcam, plus 5 opt-in real-camera tests
 
 Deliberately **not** implemented yet:
 
-- MediaPipe tracking, camera capture
-- Gesture recognition
-- Windows actions
+- **MediaPipe / hand tracking / landmarks** — OpenCV is installed for capture only
+- Gesture recognition or classification
+- Confidence filtering, safety state machine
+- Windows actions, keyboard/mouse control
 - System tray, GUI
 - Docker runtime, configuration profiles, calibration, dynamic gestures
 
-What exists is a Python 3.10 package skeleton with a minimal entry point, a locked
-`uv` environment, a test suite, and lint configuration. This validates that the
-toolchain and layout are correct before any computer-vision dependency is introduced.
+No gesture recognition or OS control exists yet. The entry point still only prints a
+banner.
+
+See [`docs/camera.md`](docs/camera.md) for the camera layer's design.
+
+---
+
+## Privacy
+
+The camera layer is **local only**. Frames are handed to the running application and
+nothing else:
+
+- no frame is written to disk
+- no frame is uploaded or transmitted over a network
+- no frame contents are logged
+- no screenshots are created
+
+There is no network code anywhere in the camera layer. The webcam is opened, read, and
+released.
 
 ---
 
@@ -138,7 +163,7 @@ Expected output:
 
 ```
 GesturePilot 0.1.0
-Environment OK. No pipeline stages implemented yet.
+Environment OK. Camera layer available; gesture pipeline not implemented yet.
 ```
 
 ---
@@ -146,10 +171,35 @@ Environment OK. No pipeline stages implemented yet.
 ## Tests
 
 ```powershell
-uv run pytest                                    # full suite
+uv run pytest                                    # full suite (no webcam needed)
 uv run pytest --cov=gesturepilot                 # with coverage
-uv run pytest tests/unit/test_main.py -v         # single file, verbose
+uv run pytest tests/unit/camera -v               # camera unit tests only
 ```
+
+The normal suite **never opens a webcam**. Unit tests inject a fake capture device, and
+an autouse fixture fails any test that tries to construct a real `cv2.VideoCapture`, so
+the suite passes on machines with no camera, on a busy camera, and in CI.
+
+### Real-camera test (manual, opt-in)
+
+The integration tests in `tests/integration/camera/` are marked `integration` and are
+deselected by default. To run them on Windows:
+
+```powershell
+uv run pytest -m integration tests/integration/camera -v
+```
+
+They skip rather than fail when no camera is present or the device is busy. Note that
+Windows will show a camera-in-use indicator while they run.
+
+For a quick manual check that prints what the device actually negotiated:
+
+```powershell
+uv run python scripts/camera_smoke_test.py
+uv run python scripts/camera_smoke_test.py --device 1 --width 1280 --height 720 --frames 30
+```
+
+That script is a development tool, not part of the application.
 
 ---
 
@@ -179,14 +229,16 @@ containerised. The Docker setup lives in `docker/` and is not wired up in this p
 ```
 gesturepilot/
 ├── src/gesturepilot/    # package source (src layout)
-├── tests/unit/           # fast, hermetic unit tests
-├── docs/                 # architecture notes and ADRs
-├── scripts/              # developer helper scripts
-├── config/               # configuration templates
-├── docker/               # development / CI container definitions
-├── pyproject.toml        # project metadata and tool config
-├── uv.lock               # reproducible dependency lock
-└── .python-version       # pinned interpreter
+│   └── camera/          # camera layer (OpenCV isolated to camera.py)
+├── tests/unit/          # fast, hermetic unit tests (no webcam)
+├── tests/integration/   # opt-in tests that may need real hardware
+├── docs/                # architecture notes and ADRs
+├── scripts/             # developer helper scripts
+├── config/              # configuration templates
+├── docker/              # development / CI container definitions
+├── pyproject.toml       # project metadata and tool config
+├── uv.lock              # reproducible dependency lock
+└── .python-version      # pinned interpreter
 ```
 
 ---
