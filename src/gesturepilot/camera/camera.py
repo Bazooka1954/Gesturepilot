@@ -220,7 +220,11 @@ class WebcamCamera:
     # -- context manager --------------------------------------------------
 
     def __enter__(self) -> WebcamCamera:
-        self.open()
+        # Tolerate an already-open camera so the documented
+        # `with open_camera(config) as camera:` idiom works: open_camera() already
+        # opened the device, and re-entering it must not raise.
+        if not self.is_open:
+            self.open()
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

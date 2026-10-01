@@ -36,6 +36,12 @@ uv.lock.bak
 Thumbs.db
 desktop.ini
 
+# Model assets (fetched locally, never committed - see models/README.md)
+models/*.task
+models/*.tflite
+models/*.bin
+models/*.onnx
+
 # Runtime artifacts (camera capture, logs, models are fetched, not committed)
 logs/
 *.log

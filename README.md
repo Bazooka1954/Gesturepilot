@@ -44,7 +44,7 @@ Stage responsibilities:
 | Stage | Responsibility | Status |
 |---|---|---|
 | Camera | Capture frames from a device | **Implemented (Phase 2)** |
-| Hand Tracker | Produce hand landmarks (MediaPipe, pending validation) | Not started |
+| Hand Tracker | Produce hand landmarks (MediaPipe) | **Implemented (Phase 3)** |
 | Landmark Processing | Normalise, smooth, derive geometric features | Not started |
 | Gesture Classifier | Map features to candidate gestures | Not started |
 | Confidence Filter | Reject low-confidence classifications | Not started |
@@ -61,19 +61,24 @@ platform-specific code never leaks into recognition logic.
 
 ## Current Status
 
-**Phase 2 — camera layer complete.**
+**Phase 3 — hand tracking complete.** Phase 2 (camera) remains done.
 
 Implemented so far:
 
-- **Camera capture** via OpenCV (`opencv-python` + `numpy`), behind an abstract
-  `Camera` interface with a safe `open → read → close` lifecycle
-- Typed frame metadata and measured (not requested) FPS
-- Camera-specific exception hierarchy
-- 90 unit tests that run without a webcam, plus 5 opt-in real-camera tests
+- **Camera capture** (Phase 2) via OpenCV, behind an abstract `Camera` interface with a
+  safe `open → read → close` lifecycle, typed frame metadata, and measured FPS
+- **Hand tracking** (Phase 3) via MediaPipe, converting a camera `Frame` into a
+  backend-independent `TrackingResult` of 21-landmark hands
+- Frozen, validated domain types: `Landmark`, `TrackedHand`, `TrackingResult`,
+  `TrackerConfig`
+- Explicit `initialize → process → close` lifecycle with context-manager support
+- Local model discovery that never downloads anything at runtime
+- 189 unit tests that need neither a webcam nor the model file, plus 11 opt-in
+  real-hardware / real-model tests
 
 Deliberately **not** implemented yet:
 
-- **MediaPipe / hand tracking / landmarks** — OpenCV is installed for capture only
+- Landmark processing, temporal smoothing, geometric feature extraction
 - Gesture recognition or classification
 - Confidence filtering, safety state machine
 - Windows actions, keyboard/mouse control
@@ -83,22 +88,33 @@ Deliberately **not** implemented yet:
 No gesture recognition or OS control exists yet. The entry point still only prints a
 banner.
 
-See [`docs/camera.md`](docs/camera.md) for the camera layer's design.
+See [`docs/camera.md`](docs/camera.md) and [`docs/tracking.md`](docs/tracking.md) for
+the layer designs.
+
+---
+
+## Model Asset
+
+Hand tracking needs one local model file, `hand_landmarker.task`. It is **not** committed
+to Git — see [`models/README.md`](models/README.md) for how to download and place it.
+
+Nothing is fetched at runtime. If the asset is missing, startup fails with a
+`ModelAssetError` that names every path searched and where to get the file.
 
 ---
 
 ## Privacy
 
-The camera layer is **local only**. Frames are handed to the running application and
-nothing else:
+The camera and tracking layers are **local only**. Frames are handed to the running
+application and the local inference engine, and nowhere else:
 
 - no frame is written to disk
 - no frame is uploaded or transmitted over a network
 - no frame contents are logged
 - no screenshots are created
 
-There is no network code anywhere in the camera layer. The webcam is opened, read, and
-released.
+There is no network code in either layer. The webcam is opened, read, and released; the
+model is loaded from disk and released on `close()`.
 
 ---
 
@@ -163,7 +179,8 @@ Expected output:
 
 ```
 GesturePilot 0.1.0
-Environment OK. Camera layer available; gesture pipeline not implemented yet.
+Environment OK. Camera and hand-tracking layers available;
+gesture recognition and OS control not implemented yet.
 ```
 
 ---
@@ -171,26 +188,29 @@ Environment OK. Camera layer available; gesture pipeline not implemented yet.
 ## Tests
 
 ```powershell
-uv run pytest                                    # full suite (no webcam needed)
+uv run pytest                                    # full suite (no webcam, no model)
 uv run pytest --cov=gesturepilot                 # with coverage
 uv run pytest tests/unit/camera -v               # camera unit tests only
+uv run pytest tests/unit/tracking -v             # tracking unit tests only
 ```
 
-The normal suite **never opens a webcam**. Unit tests inject a fake capture device, and
-an autouse fixture fails any test that tries to construct a real `cv2.VideoCapture`, so
-the suite passes on machines with no camera, on a busy camera, and in CI.
+The normal suite **never opens a webcam and never loads the model**. Unit tests inject
+fakes, and two autouse fixtures turn any attempt to construct a real `cv2.VideoCapture`
+or load the real `HandLandmarker` into an immediate failure. The suite therefore passes
+on machines with no camera, no model asset, and no GPU.
 
-### Real-camera test (manual, opt-in)
+### Real-hardware / real-model tests (manual, opt-in)
 
-The integration tests in `tests/integration/camera/` are marked `integration` and are
-deselected by default. To run them on Windows:
+Both integration directories are marked `integration` and deselected by default:
 
 ```powershell
-uv run pytest -m integration tests/integration/camera -v
+uv run pytest -m integration tests/integration/camera -v      # needs a webcam
+uv run pytest -m integration tests/integration/tracking -v   # needs models/hand_landmarker.task
+uv run pytest -m integration -v                              # everything
 ```
 
-They skip rather than fail when no camera is present or the device is busy. Note that
-Windows will show a camera-in-use indicator while they run.
+They skip rather than fail when hardware or the model is missing. Windows shows a
+camera-in-use indicator while the camera tests run.
 
 For a quick manual check that prints what the device actually negotiated:
 
@@ -199,7 +219,15 @@ uv run python scripts/camera_smoke_test.py
 uv run python scripts/camera_smoke_test.py --device 1 --width 1280 --height 720 --frames 30
 ```
 
-That script is a development tool, not part of the application.
+And for a live check of the tracking layer over real webcam frames:
+
+```powershell
+uv run python scripts/tracking_smoke_test.py
+uv run python scripts/tracking_smoke_test.py --device 1 --max-hands 2 --frames 120
+```
+
+Both scripts are development tools, not part of the application. See
+[`scripts/README.md`](scripts/README.md).
 
 ---
 
@@ -229,10 +257,12 @@ containerised. The Docker setup lives in `docker/` and is not wired up in this p
 ```
 gesturepilot/
 ├── src/gesturepilot/    # package source (src layout)
-│   └── camera/          # camera layer (OpenCV isolated to camera.py)
-├── tests/unit/          # fast, hermetic unit tests (no webcam)
-├── tests/integration/   # opt-in tests that may need real hardware
+│   ├── camera/          # camera layer (OpenCV isolated to camera.py)
+│   └── tracking/        # hand-tracking layer (MediaPipe isolated to tracker.py)
+├── tests/unit/          # fast, hermetic unit tests (no webcam, no model)
+├── tests/integration/   # opt-in tests that may need real hardware or the model
 ├── docs/                # architecture notes and ADRs
+├── models/              # local model assets (binaries not committed)
 ├── scripts/             # developer helper scripts
 ├── config/              # configuration templates
 ├── docker/              # development / CI container definitions

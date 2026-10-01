@@ -12,6 +12,7 @@ captured here as a short document with context, the decision, and its consequenc
 ## Written
 
 - [`camera.md`](camera.md) — camera layer design (Phase 2)
+- [`tracking.md`](tracking.md) — hand-tracking layer design (Phase 3)
 
 ## Current decisions
 
@@ -28,3 +29,14 @@ captured here as a short document with context, the decision, and its consequenc
 | Requested vs measured FPS stored separately | Accepted | Never report a requested rate as real throughput |
 | Explicit `close()`, no `__del__` | Accepted | `__del__` is unreliable at interpreter shutdown |
 | OpenCV confined to `camera.py` | Accepted | Enforced by AST-based tests |
+| MediaPipe confined to `tracking/tracker.py` | Accepted | Enforced by AST-based tests; backend stays swappable |
+| `opencv-contrib-python` replaces `opencv-python` | Accepted | MediaPipe requires the contrib build; both ship the same `cv2` package |
+| VIDEO running mode by default | Accepted | Webcam frames are a time series; tracking state stabilises landmarks |
+| Timestamps taken from the camera | Accepted | Already monotonic; avoids re-measuring and clock-regression bugs |
+| BGR→RGB conversion inside tracking | Accepted | Keeps the camera backend-agnostic; `cvtColor` never mutates the source |
+| Injected landmarker factory | Accepted | Makes the tracking layer testable without a 7 MB model asset |
+| Local model discovery, no runtime download | Accepted | No silent large downloads or network dependency at startup |
+| Model binaries excluded from Git | Accepted | Keeps history small; avoids redistribution questions |
+| `Handedness.UNKNOWN` as a real state | Accepted | Forcing a binary guess downstream hides detection problems |
+| Normalised landmark coordinates | Accepted | Only the landmark-processing stage knows frame dimensions |
+| No per-frame confidence gate yet | Accepted | Thresholds are init-time; a confidence gate belongs to a later phase |

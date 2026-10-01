@@ -64,6 +64,34 @@ def test_open_camera_helper_returns_open_camera(capture_factory: FakeCaptureFact
     camera.close()
 
 
+def test_open_camera_result_is_reusable_as_context_manager(
+    capture_factory: FakeCaptureFactory,
+) -> None:
+    """The documented `with open_camera(...) as camera:` idiom must work.
+
+    open_camera() already opens the device, so re-entering it must not raise
+    CameraStateError.
+    """
+    with open_camera(CameraConfig(device_index=1), capture_factory=capture_factory) as camera:
+        assert camera.is_open is True
+        frame = camera.read()
+
+    assert frame.image.size > 0
+    assert camera.is_open is False
+
+
+def test_context_manager_on_closed_camera_still_opens(
+    capture_factory: FakeCaptureFactory,
+) -> None:
+    """Entering a closed camera opens it, as before."""
+    camera = make_camera(CameraConfig(device_index=2), capture_factory=capture_factory)
+
+    with camera as entered:
+        assert entered.is_open is True
+
+    assert camera.is_open is False
+
+
 # --------------------------------------------------------------------------
 # 2. Open failure
 # --------------------------------------------------------------------------

@@ -21,10 +21,13 @@ classifiers = [
 ]
 
 # OpenCV and NumPy back the camera capture layer (Phase 2).
-# MediaPipe is deliberately absent: hand tracking is a later phase.
+# MediaPipe and opencv-contrib-python back the hand-tracking layer (Phase 3).
+# opencv-contrib-python replaces opencv-python: both ship the top-level `cv2`
+# package, and MediaPipe requires the contrib build. Installing both corrupts cv2.
 dependencies = [
+    "mediapipe>=1.0.1,<2",
     "numpy>=2.2.6",
-    "opencv-python>=5.0.0.93",
+    "opencv-contrib-python>=5.0.0.93,<6",
 ]
 
 [project.scripts]

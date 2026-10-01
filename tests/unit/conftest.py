@@ -27,3 +27,23 @@ def forbid_real_capture(monkeypatch: pytest.MonkeyPatch) -> None:
         )
 
     monkeypatch.setattr(cv2, "VideoCapture", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def forbid_real_landmarker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make loading the real hand-landmarker model an immediate error.
+
+    Unit tests must run on a machine with no model asset and no GPU. Inject
+    ``landmarker_factory=FakeLandmarkerFactory(...)`` so tests stay deterministic and
+    need neither ``models/hand_landmarker.task`` nor the real MediaPipe engine.
+    """
+
+    from mediapipe.tasks.python.vision import HandLandmarker
+
+    def _blocked(*args: object, **kwargs: object) -> None:
+        raise AssertionError(
+            "Unit tests must not load the real MediaPipe HandLandmarker. "
+            "Inject landmarker_factory=FakeLandmarkerFactory(...) instead."
+        )
+
+    monkeypatch.setattr(HandLandmarker, "create_from_options", _blocked)
