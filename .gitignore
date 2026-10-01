@@ -1,0 +1,41 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python bytecode / build artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Test and coverage artifacts
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.junit.xml
+
+# Local configuration and secrets
+.env
+.env.*
+config/*.local.toml
+config/*.local.yaml
+
+# Tooling caches
+.mypy_cache/
+uv.lock.bak
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime artifacts (camera capture, logs, models are fetched, not committed)
+logs/
+*.log
