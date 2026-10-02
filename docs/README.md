@@ -13,6 +13,7 @@ captured here as a short document with context, the decision, and its consequenc
 
 - [`camera.md`](camera.md) — camera layer design (Phase 2)
 - [`tracking.md`](tracking.md) — hand-tracking layer design (Phase 3)
+- [`processing.md`](processing.md) — landmark-processing layer design (Phase 4)
 
 ## Current decisions
 
@@ -40,3 +41,13 @@ captured here as a short document with context, the decision, and its consequenc
 | `Handedness.UNKNOWN` as a real state | Accepted | Forcing a binary guess downstream hides detection problems |
 | Normalised landmark coordinates | Accepted | Only the landmark-processing stage knows frame dimensions |
 | No per-frame confidence gate yet | Accepted | Thresholds are init-time; a confidence gate belongs to a later phase |
+| Wrist-relative, hand-scale normalisation | Accepted | Removes frame position and apparent size from every derived measurement |
+| Hand scale measured wrist → middle knuckle | Accepted | Longest stable palm bone; a fingertip-based reference drifts with the measured motion |
+| Palm centre = wrist + four knuckles, centroided | Accepted | Sits mid-palm and moves only with the palm; far steadier than any single landmark |
+| Image-plane angles only | Accepted | `z` is a noisy depth estimate, not commensurate with `x`/`y`; a planar angle is reliable, a 3-D one is not |
+| Collapsed joint angles reported as `None` | Accepted | A folded finger is a real pose, not an error; a `NaN` would poison unrelated comparisons |
+| `roll` folded into `[-pi/2, pi/2]` | Accepted | The across-palm axis is undirected; folding makes mirroring negate it exactly |
+| Handedness never used for geometry | Accepted | The label may be inverted (see `tracking.md`); the index knuckle is a geometry-chosen reference |
+| Optional One Euro smoothing, off by default | Accepted | Keeps `process()` a pure function; adaptive cutoff avoids the lag/noise trade-off |
+| Caller-supplied timestamps, no hidden clock | Accepted | Exact, reproducible assertions; matches the camera layer's timestamps |
+| Pure float arithmetic, no NumPy | Accepted | Derived measurements stay exactly assertable; forbidden by AST test |

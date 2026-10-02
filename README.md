@@ -45,7 +45,7 @@ Stage responsibilities:
 |---|---|---|
 | Camera | Capture frames from a device | **Implemented (Phase 2)** |
 | Hand Tracker | Produce hand landmarks (MediaPipe) | **Implemented (Phase 3)** |
-| Landmark Processing | Normalise, smooth, derive geometric features | Not started |
+| Landmark Processing | Normalise, smooth, derive geometric features | **Implemented (Phase 4)** |
 | Gesture Classifier | Map features to candidate gestures | Not started |
 | Confidence Filter | Reject low-confidence classifications | Not started |
 | Safety State Machine | Hold-to-confirm, cooldown, release-to-reset, arming | Not started |
@@ -61,7 +61,8 @@ platform-specific code never leaks into recognition logic.
 
 ## Current Status
 
-**Phase 3 — hand tracking complete.** Phase 2 (camera) remains done.
+**Phase 4 — landmark processing complete.** Phases 2 (camera) and 3 (hand tracking)
+remain done.
 
 Implemented so far:
 
@@ -69,16 +70,21 @@ Implemented so far:
   safe `open → read → close` lifecycle, typed frame metadata, and measured FPS
 - **Hand tracking** (Phase 3) via MediaPipe, converting a camera `Frame` into a
   backend-independent `TrackingResult` of 21-landmark hands
+- **Landmark processing** (Phase 4) via `LandmarkProcessor`, converting a `TrackedHand`
+  into a backend-independent `HandFeatures`: wrist-relative, hand-scale-normalised
+  coordinates plus per-finger joint angles, bone lengths, tip distances, and palm
+  orientation
 - Frozen, validated domain types: `Landmark`, `TrackedHand`, `TrackingResult`,
-  `TrackerConfig`
+  `TrackerConfig`, `HandFeatures`, `FingerGeometry`, `PalmOrientation`, `ProcessedLandmark`
 - Explicit `initialize → process → close` lifecycle with context-manager support
+- Optional deterministic One Euro smoothing with caller-supplied timestamps, off by
+  default so the processor stays a pure function
 - Local model discovery that never downloads anything at runtime
-- 189 unit tests that need neither a webcam nor the model file, plus 11 opt-in
+- 512 unit tests that need neither a webcam nor the model file, plus 11 opt-in
   real-hardware / real-model tests
 
 Deliberately **not** implemented yet:
 
-- Landmark processing, temporal smoothing, geometric feature extraction
 - Gesture recognition or classification
 - Confidence filtering, safety state machine
 - Windows actions, keyboard/mouse control
@@ -88,8 +94,8 @@ Deliberately **not** implemented yet:
 No gesture recognition or OS control exists yet. The entry point still only prints a
 banner.
 
-See [`docs/camera.md`](docs/camera.md) and [`docs/tracking.md`](docs/tracking.md) for
-the layer designs.
+See [`docs/camera.md`](docs/camera.md), [`docs/tracking.md`](docs/tracking.md), and
+[`docs/processing.md`](docs/processing.md) for the layer designs.
 
 ---
 
@@ -105,16 +111,17 @@ Nothing is fetched at runtime. If the asset is missing, startup fails with a
 
 ## Privacy
 
-The camera and tracking layers are **local only**. Frames are handed to the running
-application and the local inference engine, and nowhere else:
+The camera, tracking, and processing layers are **local only**. Frames are handed to the
+running application and the local inference engine, and nowhere else:
 
 - no frame is written to disk
 - no frame is uploaded or transmitted over a network
 - no frame contents are logged
 - no screenshots are created
 
-There is no network code in either layer. The webcam is opened, read, and released; the
-model is loaded from disk and released on `close()`.
+There is no network code in any of these layers. The webcam is opened, read, and released;
+the model is loaded from disk and released on `close()`. The processing layer handles
+numbers only — it reads no clock and touches no file, both enforced by test.
 
 ---
 
@@ -192,6 +199,7 @@ uv run pytest                                    # full suite (no webcam, no mod
 uv run pytest --cov=gesturepilot                 # with coverage
 uv run pytest tests/unit/camera -v               # camera unit tests only
 uv run pytest tests/unit/tracking -v             # tracking unit tests only
+uv run pytest tests/unit/processing -v           # processing unit tests only
 ```
 
 The normal suite **never opens a webcam and never loads the model**. Unit tests inject
@@ -258,7 +266,8 @@ containerised. The Docker setup lives in `docker/` and is not wired up in this p
 gesturepilot/
 ├── src/gesturepilot/    # package source (src layout)
 │   ├── camera/          # camera layer (OpenCV isolated to camera.py)
-│   └── tracking/        # hand-tracking layer (MediaPipe isolated to tracker.py)
+│   ├── tracking/        # hand-tracking layer (MediaPipe isolated to tracker.py)
+│   └── processing/      # landmark-processing layer (no backend imports at all)
 ├── tests/unit/          # fast, hermetic unit tests (no webcam, no model)
 ├── tests/integration/   # opt-in tests that may need real hardware or the model
 ├── docs/                # architecture notes and ADRs
