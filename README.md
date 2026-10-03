@@ -46,7 +46,7 @@ Stage responsibilities:
 | Camera | Capture frames from a device | **Implemented (Phase 2)** |
 | Hand Tracker | Produce hand landmarks (MediaPipe) | **Implemented (Phase 3)** |
 | Landmark Processing | Normalise, smooth, derive geometric features | **Implemented (Phase 4)** |
-| Gesture Classifier | Map features to candidate gestures | Not started |
+| Gesture Classifier | Map features to candidate gestures | **Implemented (Phase 5)** |
 | Confidence Filter | Reject low-confidence classifications | Not started |
 | Safety State Machine | Hold-to-confirm, cooldown, release-to-reset, arming | Not started |
 | Gesture Event | Emit a confirmed, validated gesture | Not started |
@@ -61,8 +61,8 @@ platform-specific code never leaks into recognition logic.
 
 ## Current Status
 
-**Phase 4 — landmark processing complete.** Phases 2 (camera) and 3 (hand tracking)
-remain done.
+**Phase 5 — static gesture classification complete.** Phases 2 (camera), 3 (hand
+tracking), and 4 (landmark processing) remain done.
 
 Implemented so far:
 
@@ -74,28 +74,36 @@ Implemented so far:
   into a backend-independent `HandFeatures`: wrist-relative, hand-scale-normalised
   coordinates plus per-finger joint angles, bone lengths, tip distances, and palm
   orientation
+- **Static gesture classification** (Phase 5) via `GestureClassifier`, recognising five
+  static hand configurations — open palm, fist, point, pinch, and two fingers — from one
+  frame of features, with an explicit `UNKNOWN` for anything ambiguous. Handedness is
+  never consulted, and the result carries both a confidence and the margin over the
+  nearest rival
 - Frozen, validated domain types: `Landmark`, `TrackedHand`, `TrackingResult`,
-  `TrackerConfig`, `HandFeatures`, `FingerGeometry`, `PalmOrientation`, `ProcessedLandmark`
+  `TrackerConfig`, `HandFeatures`, `FingerGeometry`, `PalmOrientation`, `ProcessedLandmark`,
+  `Gesture`, `GestureClassification`, `HandMeasurements`, `ClassifierConfig`
 - Explicit `initialize → process → close` lifecycle with context-manager support
 - Optional deterministic One Euro smoothing with caller-supplied timestamps, off by
   default so the processor stays a pure function
 - Local model discovery that never downloads anything at runtime
-- 512 unit tests that need neither a webcam nor the model file, plus 11 opt-in
+- 719 unit tests that need neither a webcam nor the model file, plus 11 opt-in
   real-hardware / real-model tests
 
 Deliberately **not** implemented yet:
 
-- Gesture recognition or classification
-- Confidence filtering, safety state machine
+- Temporal gestures: swipes, transitions, or anything needing more than one frame
+- Confidence filtering, smoothing, debounce, safety state machine
 - Windows actions, keyboard/mouse control
 - System tray, GUI
-- Docker runtime, configuration profiles, calibration, dynamic gestures
+- Docker runtime, configuration profiles, calibration, user training
 
-No gesture recognition or OS control exists yet. The entry point still only prints a
+The classifier recognises static poses only and rejects nothing on confidence — no
+temporal recognition and no gesture events exist yet. The entry point still only prints a
 banner.
 
-See [`docs/camera.md`](docs/camera.md), [`docs/tracking.md`](docs/tracking.md), and
-[`docs/processing.md`](docs/processing.md) for the layer designs.
+See [`docs/camera.md`](docs/camera.md), [`docs/tracking.md`](docs/tracking.md),
+[`docs/processing.md`](docs/processing.md), and
+[`docs/classifier.md`](docs/classifier.md) for the layer designs.
 
 ---
 
@@ -111,17 +119,18 @@ Nothing is fetched at runtime. If the asset is missing, startup fails with a
 
 ## Privacy
 
-The camera, tracking, and processing layers are **local only**. Frames are handed to the
-running application and the local inference engine, and nowhere else:
+The camera, tracking, processing, and classification layers are **local only**. Frames are
+handed to the running application and the local inference engine, and nowhere else:
 
 - no frame is written to disk
 - no frame is uploaded or transmitted over a network
 - no frame contents are logged
 - no screenshots are created
+- nothing is recorded, retained, or used to train anything
 
 There is no network code in any of these layers. The webcam is opened, read, and released;
-the model is loaded from disk and released on `close()`. The processing layer handles
-numbers only — it reads no clock and touches no file, both enforced by test.
+the model is loaded from disk and released on `close()`. The processing and classification
+layers handle numbers only — they read no clock and touch no file, both enforced by test.
 
 ---
 
@@ -200,6 +209,7 @@ uv run pytest --cov=gesturepilot                 # with coverage
 uv run pytest tests/unit/camera -v               # camera unit tests only
 uv run pytest tests/unit/tracking -v             # tracking unit tests only
 uv run pytest tests/unit/processing -v           # processing unit tests only
+uv run pytest tests/unit/classifier -v           # classifier unit tests only
 ```
 
 The normal suite **never opens a webcam and never loads the model**. Unit tests inject
@@ -267,7 +277,8 @@ gesturepilot/
 ├── src/gesturepilot/    # package source (src layout)
 │   ├── camera/          # camera layer (OpenCV isolated to camera.py)
 │   ├── tracking/        # hand-tracking layer (MediaPipe isolated to tracker.py)
-│   └── processing/      # landmark-processing layer (no backend imports at all)
+│   ├── processing/      # landmark-processing layer (no backend imports at all)
+│   └── classifier/      # static gesture classification (depends only on processing)
 ├── tests/unit/          # fast, hermetic unit tests (no webcam, no model)
 ├── tests/integration/   # opt-in tests that may need real hardware or the model
 ├── docs/                # architecture notes and ADRs

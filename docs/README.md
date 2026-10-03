@@ -14,6 +14,7 @@ captured here as a short document with context, the decision, and its consequenc
 - [`camera.md`](camera.md) — camera layer design (Phase 2)
 - [`tracking.md`](tracking.md) — hand-tracking layer design (Phase 3)
 - [`processing.md`](processing.md) — landmark-processing layer design (Phase 4)
+- [`classifier.md`](classifier.md) — static gesture-classification design (Phase 5)
 
 ## Current decisions
 
@@ -51,3 +52,12 @@ captured here as a short document with context, the decision, and its consequenc
 | Optional One Euro smoothing, off by default | Accepted | Keeps `process()` a pure function; adaptive cutoff avoids the lag/noise trade-off |
 | Caller-supplied timestamps, no hidden clock | Accepted | Exact, reproducible assertions; matches the camera layer's timestamps |
 | Pure float arithmetic, no NumPy | Accepted | Derived measurements stay exactly assertable; forbidden by AST test |
+| Static classification, one frame at a time | Accepted | No memory means every verdict is reproducible from a single input |
+| Extension ratio per digit, not joint angles | Accepted | Collapsed angles are `None` exactly on the poses a fist is made of; the ratio is always defined |
+| Confidence from evidence × margin | Accepted | A confident `UNKNOWN` is a good outcome; `score_for()` answers "how much like a point?" |
+| `UNKNOWN` requires both a score and a margin floor | Accepted | Two gestures fitting a pose equally is a coin flip, and naming it would hide that |
+| `min` over required conditions, not a product | Accepted | Names the weakest failing finger instead of collapsing it into one small number |
+| Thumb excluded from `POINT`/`TWO_FINGERS` | Accepted | A real pointing hand holds its thumb wherever is comfortable |
+| Handedness never read by the classifier | Accepted | Enforced by AST test; the label may be inverted (see `tracking.md`) |
+| Thresholds defaulted, not calibrated | Accepted | No recorded hands to fit against; every knob is a `ClassifierConfig` field |
+| Confidence filtering kept out of the classifier | Accepted | Rejection is its own stage; hiding the threshold inside recognition makes it untunable |
