@@ -18,9 +18,9 @@ def main() -> int:
         Process exit code. Always ``0`` at this stage.
     """
     print(f"GesturePilot {__version__}")
-    print("Environment OK. Camera, hand-tracking, landmark-processing, and static")
-    print("gesture-classification layers available; confidence filtering, temporal")
-    print("gestures, and OS control not implemented yet.")
+    print("Environment OK. Camera, hand-tracking, landmark-processing, static")
+    print("gesture-classification, and temporal confidence-filtering layers available;")
+    print("safety state machine, gesture events, and OS control not implemented yet.")
     return 0
 
 

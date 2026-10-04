@@ -166,6 +166,10 @@ express a break, and the caller picks per situation:
 Inventing a `UNKNOWN` for a missing frame would be a lie about what the classifier saw, and
 would also silently count as an observation the pipeline never made.
 
+`scripts/pipeline_smoke_test.py` is the caller that does this in practice: a frame with no hand
+resets both the smoothing state and the filter, and prints `no hand in frame` rather than the
+last gesture it saw.
+
 ---
 
 ## Configuration

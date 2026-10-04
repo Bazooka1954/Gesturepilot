@@ -255,7 +255,19 @@ uv run python scripts/tracking_smoke_test.py
 uv run python scripts/tracking_smoke_test.py --device 1 --max-hands 2 --frames 120
 ```
 
-Both scripts are development tools, not part of the application. See
+For the whole pipeline at once — camera, tracking, processing, classification, and
+confidence filter — printing one status line per refresh with the gesture, its confidence,
+and whether it is accepted as stable:
+
+```powershell
+uv run python scripts/pipeline_smoke_test.py
+uv run python scripts/pipeline_smoke_test.py --smoothing --min-observations 5
+uv run python scripts/pipeline_smoke_test.py --frames 0 --show    # run until 'q'
+```
+
+It prints only. It triggers no OS action, takes no input, and stores nothing.
+
+All three scripts are development tools, not part of the application. See
 [`scripts/README.md`](scripts/README.md).
 
 ---
