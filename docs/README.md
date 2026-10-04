@@ -15,6 +15,7 @@ captured here as a short document with context, the decision, and its consequenc
 - [`tracking.md`](tracking.md) — hand-tracking layer design (Phase 3)
 - [`processing.md`](processing.md) — landmark-processing layer design (Phase 4)
 - [`classifier.md`](classifier.md) — static gesture-classification design (Phase 5)
+- [`confidence-filter.md`](confidence-filter.md) — temporal stability filtering design (Phase 6)
 
 ## Current decisions
 
@@ -61,3 +62,16 @@ captured here as a short document with context, the decision, and its consequenc
 | Handedness never read by the classifier | Accepted | Enforced by AST test; the label may be inverted (see `tracking.md`) |
 | Thresholds defaulted, not calibrated | Accepted | No recorded hands to fit against; every knob is a `ClassifierConfig` field |
 | Confidence filtering kept out of the classifier | Accepted | Rejection is its own stage; hiding the threshold inside recognition makes it untunable |
+| Stability counted in observations, not seconds | Accepted | Frame rate is a property of the camera; a seconds-based filter would accept twice as fast on a fast machine |
+| Timestamps optional, caller-supplied, never read from a clock | Accepted | Matches the camera and smoothing layers; a filter that owns a time is no longer a function of its input |
+| Equal timestamps allowed, backwards ones rejected | Accepted | `OneEuroFilter` divides by the interval and cannot tolerate a zero gap; this filter only compares one against a threshold |
+| The filter's whole state is three values | Accepted | Nothing derived is stored, so nothing derived can disagree with the run; `reset()` is one assignment |
+| `UNKNOWN` and low confidence end a run rather than being ignored | Accepted | They are the classifier declining to name a gesture; accumulating across one would accumulate evidence it withheld |
+| `UNKNOWN` and low confidence are not errors | Accepted | The filter answering is its job; only input it cannot evaluate should reach a `try` |
+| Losing stability is immediate and silent | Accepted | It reports the present; what a safety stage does about a one-frame dip is that stage's decision, not a threshold side effect |
+| `RESET` as the default candidate-change policy | Accepted | A gesture that flickers away and back has not been seen three times running; `HOLD` can pin a stale gesture |
+| No run decay after acceptance | Accepted | Nothing reads the count past acceptance; a caller wanting a bounded run calls `reset()` |
+| Aggregate confidence named and documented as a run summary | Accepted | `mean_confidence` is not the classifier's confidence and must not be read as one |
+| Label-agnostic filter, no gesture named in code | Accepted | Enforced by AST test; a sixth gesture is a classifier change, not a filter change |
+| No fake label for a missing frame | Accepted | `reset()` or a long gap; inventing an `UNKNOWN` would lie about what the classifier saw |
+| Accepted stability is not authorisation | Accepted | Whether a stable gesture may act is the safety state machine's decision; this layer dispatches nothing |

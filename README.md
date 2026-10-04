@@ -47,7 +47,7 @@ Stage responsibilities:
 | Hand Tracker | Produce hand landmarks (MediaPipe) | **Implemented (Phase 3)** |
 | Landmark Processing | Normalise, smooth, derive geometric features | **Implemented (Phase 4)** |
 | Gesture Classifier | Map features to candidate gestures | **Implemented (Phase 5)** |
-| Confidence Filter | Reject low-confidence classifications | Not started |
+| Confidence Filter | Reject low-confidence, unstable classifications | **Implemented (Phase 6)** |
 | Safety State Machine | Hold-to-confirm, cooldown, release-to-reset, arming | Not started |
 | Gesture Event | Emit a confirmed, validated gesture | Not started |
 | Action Dispatcher | Route an event to the correct backend | Not started |
@@ -61,8 +61,8 @@ platform-specific code never leaks into recognition logic.
 
 ## Current Status
 
-**Phase 5 — static gesture classification complete.** Phases 2 (camera), 3 (hand
-tracking), and 4 (landmark processing) remain done.
+**Phase 6 — temporal confidence filtering complete.** Phases 2 (camera), 3 (hand
+tracking), 4 (landmark processing), and 5 (gesture classification) remain done.
 
 Implemented so far:
 
@@ -79,31 +79,39 @@ Implemented so far:
   frame of features, with an explicit `UNKNOWN` for anything ambiguous. Handedness is
   never consulted, and the result carries both a confidence and the margin over the
   nearest rival
+- **Temporal confidence filtering** (Phase 6) via `ConfidenceFilter`, the first stage with
+  memory: it folds classifications into a run and reports a gesture as stable only once it
+  has been recognised confidently enough, `min_stable_observations` times in a row.
+  `UNKNOWN` and sub-threshold results never count as evidence, stability is counted in
+  observations rather than seconds so no frame rate is assumed, and a caller-supplied
+  timestamp can additionally break a run across a long gap
 - Frozen, validated domain types: `Landmark`, `TrackedHand`, `TrackingResult`,
   `TrackerConfig`, `HandFeatures`, `FingerGeometry`, `PalmOrientation`, `ProcessedLandmark`,
-  `Gesture`, `GestureClassification`, `HandMeasurements`, `ClassifierConfig`
+  `Gesture`, `GestureClassification`, `HandMeasurements`, `ClassifierConfig`,
+  `ConfidenceFilterConfig`, `StabilityReport`, `FilterState`, `CandidateChangePolicy`
 - Explicit `initialize → process → close` lifecycle with context-manager support
 - Optional deterministic One Euro smoothing with caller-supplied timestamps, off by
   default so the processor stays a pure function
 - Local model discovery that never downloads anything at runtime
-- 719 unit tests that need neither a webcam nor the model file, plus 11 opt-in
+- 920 unit tests that need neither a webcam nor the model file, plus 11 opt-in
   real-hardware / real-model tests
 
 Deliberately **not** implemented yet:
 
 - Temporal gestures: swipes, transitions, or anything needing more than one frame
-- Confidence filtering, smoothing, debounce, safety state machine
+- Safety state machine, gesture events, action dispatch
 - Windows actions, keyboard/mouse control
 - System tray, GUI
 - Docker runtime, configuration profiles, calibration, user training
 
-The classifier recognises static poses only and rejects nothing on confidence — no
-temporal recognition and no gesture events exist yet. The entry point still only prints a
-banner.
+The classifier recognises static poses only and the confidence filter accepts nothing: a
+gesture it calls *stable* has merely been seen consistently, and whether that is enough to
+act on is the safety state machine's decision. No gesture events and no actions exist yet,
+and the entry point still only prints a banner.
 
 See [`docs/camera.md`](docs/camera.md), [`docs/tracking.md`](docs/tracking.md),
-[`docs/processing.md`](docs/processing.md), and
-[`docs/classifier.md`](docs/classifier.md) for the layer designs.
+[`docs/processing.md`](docs/processing.md), [`docs/classifier.md`](docs/classifier.md), and
+[`docs/confidence-filter.md`](docs/confidence-filter.md) for the layer designs.
 
 ---
 
@@ -119,8 +127,9 @@ Nothing is fetched at runtime. If the asset is missing, startup fails with a
 
 ## Privacy
 
-The camera, tracking, processing, and classification layers are **local only**. Frames are
-handed to the running application and the local inference engine, and nowhere else:
+The camera, tracking, processing, classification, and confidence-filtering layers are
+**local only**. Frames are handed to the running application and the local inference engine,
+and nowhere else:
 
 - no frame is written to disk
 - no frame is uploaded or transmitted over a network
@@ -129,8 +138,9 @@ handed to the running application and the local inference engine, and nowhere el
 - nothing is recorded, retained, or used to train anything
 
 There is no network code in any of these layers. The webcam is opened, read, and released;
-the model is loaded from disk and released on `close()`. The processing and classification
-layers handle numbers only — they read no clock and touch no file, both enforced by test.
+the model is loaded from disk and released on `close()`. The processing, classification, and
+confidence-filtering layers handle numbers only — they read no clock and touch no file, both
+enforced by test.
 
 ---
 
@@ -210,6 +220,7 @@ uv run pytest tests/unit/camera -v               # camera unit tests only
 uv run pytest tests/unit/tracking -v             # tracking unit tests only
 uv run pytest tests/unit/processing -v           # processing unit tests only
 uv run pytest tests/unit/classifier -v           # classifier unit tests only
+uv run pytest tests/unit/confidence -v           # confidence-filter unit tests only
 ```
 
 The normal suite **never opens a webcam and never loads the model**. Unit tests inject
@@ -278,7 +289,8 @@ gesturepilot/
 │   ├── camera/          # camera layer (OpenCV isolated to camera.py)
 │   ├── tracking/        # hand-tracking layer (MediaPipe isolated to tracker.py)
 │   ├── processing/      # landmark-processing layer (no backend imports at all)
-│   └── classifier/      # static gesture classification (depends only on processing)
+│   ├── classifier/      # static gesture classification (depends only on processing)
+│   └── confidence/      # temporal stability filtering (depends only on classifier)
 ├── tests/unit/          # fast, hermetic unit tests (no webcam, no model)
 ├── tests/integration/   # opt-in tests that may need real hardware or the model
 ├── docs/                # architecture notes and ADRs
